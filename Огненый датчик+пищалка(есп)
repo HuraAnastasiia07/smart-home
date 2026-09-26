@@ -1,0 +1,43 @@
+const int pinA0   = 35;  // аналоговый выход датчика
+const int pinD0   = 34;  // цифровой выход датчика
+const int pinBuzz = 25;  // зуммер
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(pinD0, INPUT);
+
+  // настраиваем ШИМ для зуммера
+  ledcSetup(0, 2000, 8);       // канал 0, частота 2 кГц, 8 бит
+  ledcAttachPin(pinBuzz, 0);   // привязка пина к каналу
+  ledcWrite(0, 0);             // звук выкл
+}
+
+void loop() {
+  int analogVal  = analogRead(pinA0);
+  int digitalVal = digitalRead(pinD0);
+
+  Serial.print("Analog = ");
+  Serial.print(analogVal);
+  Serial.print(" | Digital = ");
+  Serial.println(digitalVal);
+
+  if (analogVal < 1000) {
+    Serial.println("🔥 Огонь обнаружен! Зуммер ВКЛ");
+    ledcWrite(0, 128);   // громкость ~50% (0..255)
+  } else {
+    ledcWrite(0, 0);     // выкл
+  }
+
+  delay(200);
+}
+
+
+датчик: A0 = D35
++ = 3.3v
+- = gnd
+D0 = D34
+
+зуммер:
++ = D25
+- = gnd
