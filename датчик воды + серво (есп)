@@ -1,0 +1,45 @@
+#include <ESP32Servo.h>
+
+const int rainPin = 34;     // аналоговый вход с модуля дождя
+const int servoPin = 25;    // серво на GPIO14
+
+Servo servo;
+int threshold = 1500; // порог "мокро/сухо", нужно подобрать по тесту
+
+void setup() {
+  Serial.begin(115200);
+
+  // подключаем серво
+  servo.setPeriodHertz(50);           // стандарт для сервоприводов
+  servo.attach(servoPin, 500, 2400);  // min и max импульсы
+  servo.write(0);                     // стартовое положение
+}
+
+void loop() {
+  int rainValue = analogRead(rainPin);  // читаем значение 0..4095
+  Serial.print("Rain sensor = ");
+  Serial.println(rainValue);
+
+  if (rainValue < threshold) {
+    // мокро → поворачиваем на 90°
+    Serial.println("💧 Вода обнаружена!");
+    servo.write(90);
+  } else {
+    // сухо → возвращаем обратно
+    Serial.println("☀️ Сухо");
+    servo.write(0);
+  }
+
+  delay(500);
+}
+
+Датчик воды:
+A0 → GPIO 34 
+D0 (можно не использовать пока)
+VCC → 3.3V ESP32
+GND → GND ESP32
+
+серво:
+GPIO 25 оранжевій)
+5В от уно(красній)
+Гнд от уно подсоединить к гнд от есп и подсоединить к гнд серво(коричневіе)
