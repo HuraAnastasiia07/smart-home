@@ -1,0 +1,34 @@
+int pinA0 = A0;
+int pinIO = 9;
+
+void setup() {
+  pinMode(pinA0, INPUT);
+  pinMode(pinIO, OUTPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  int xA0 = analogRead(pinA0); // Считываем данные с датчика
+  Serial.print("IN = ");
+  Serial.println(xA0);
+
+  if (xA0 > 100) {
+    Serial.println("ON");
+    tone(pinIO, 1000);    // генерируем звук 1000 Гц
+  } else {
+    Serial.println("OFF");
+    noTone(pinIO);        // выключаем звук
+  }
+
+  delay(200);
+}
+
+pinout:
+датчик: A0 = ref
++ = 5v
+- = gnd
+D0 = A0
+
+зуммер:
++ = D9
+- = gnd
