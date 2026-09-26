@@ -18,25 +18,39 @@ void setup() {
   SPI.begin();
   mfrc522.PCD_Init();
 
-  // Для ESP32 нужно указать частоту ШИМ
   servo1.setPeriodHertz(50);
   servo2.setPeriodHertz(50);
 
-  servo1.attach(SERVO1_PIN, 500, 2400); // (пин, минимальная, максимальная ширина импульса)
+  servo1.attach(SERVO1_PIN, 500, 2400);
   servo2.attach(SERVO2_PIN, 500, 2400);
 
   servo1.write(0);
   servo2.write(0);
 }
 
-void loop() {
-  if (!mfrc522.PICC_IsNewCardPresent()) {
-    return;
-  }
+// плавное движение сразу двух серв
+void smoothMoveBoth(Servo &s1, Servo &s2, int start1, int end1, int start2, int end2, int duration) {
+  int steps = max(abs(end1 - start1), abs(end2 - start2)); // кол-во шагов = максимальный путь
+  float stepDelay = (float)duration / steps;
 
-  if (!mfrc522.PICC_ReadCardSerial()) {
-    return;
+  float angle1 = start1;
+  float angle2 = start2;
+
+  float delta1 = (float)(end1 - start1) / steps;
+  float delta2 = (float)(end2 - start2) / steps;
+
+  for (int i = 0; i <= steps; i++) {
+    s1.write((int)angle1);
+    s2.write((int)angle2);
+    angle1 += delta1;
+    angle2 += delta2;
+    delay(stepDelay);
   }
+}
+
+void loop() {
+  if (!mfrc522.PICC_IsNewCardPresent()) return;
+  if (!mfrc522.PICC_ReadCardSerial()) return;
 
   Serial.print("RFID ключ найден: ");
   for (byte i = 0; i < mfrc522.uid.size; i++) {
@@ -45,17 +59,25 @@ void loop() {
   }
   Serial.println();
 
-  servo1.write(90);
-  servo2.write(-90);
+  // плавно открыть за 3 сек
+  smoothMoveBoth(servo1, servo2, 
+              90, 0,   // первая створка назад
+               0, 90,   // вторая створка назад
+               3000);
 
-  delay(5000);
+  delay(2000); // подождать в открытом положении
 
-  servo1.write(0);
-  servo2.write(90);
+  // плавно закрыть за 3 сек
+  // плавно закрыть за 3 секунды
+  smoothMoveBoth(servo1, servo2, 
+               
+               0, 90,   // первая створка: от 0° до 90°
+               90, 0,   // вторая створка: наоборот — от 90° к 0°
+               3000);
+
 
   mfrc522.PICC_HaltA();
 }
-
 
 
 рфид:
