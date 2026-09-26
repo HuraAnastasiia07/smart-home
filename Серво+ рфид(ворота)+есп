@@ -55,3 +55,19 @@ void loop() {
 
   mfrc522.PICC_HaltA();
 }
+
+
+
+рфид:
+SDA → GPIO 5
+SCK → GPIO 18
+MOSI → GPIO 23
+MISO → GPIO 19
+RST → GPIO 4
+3.3V → 3.3V ESP32 
+GND → GND ESP32
+
+Серво(2 шт)
+GPIO 14 и GPIO 27(оранжевіе)
+5В от уно(красніе)
+Гнд от уно подсоединить к гнд от есп и подсоединить к гнд серво(коричневіе)
