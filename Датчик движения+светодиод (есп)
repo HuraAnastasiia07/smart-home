@@ -1,0 +1,39 @@
+const int PIR_PIN = 32;   // OUT датчика SR505
+const int LED_PIN = 25;    // встроенный светодиод ESP32 (или свой внешний)
+
+unsigned long lastMotionTime = 0;   // время последнего движения
+const unsigned long holdTime = 5000; // 5 секунд "холда"
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(PIR_PIN, INPUT);
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+}
+
+void loop() {
+  int val = digitalRead(PIR_PIN);
+
+  if (val == HIGH) {
+    Serial.println("Движение! 🚶");
+    digitalWrite(LED_PIN, HIGH);          // включаем LED сразу
+    lastMotionTime = millis();            // запоминаем время
+  }
+
+  // держим LED включённым ещё 5 сек после последнего движения
+  if (millis() - lastMotionTime > holdTime) {
+    digitalWrite(LED_PIN, LOW);
+  }
+
+  delay(100);
+}
+
+
+Датчик
+VCC → 5V (уно)
+Гнд от уно подсоединить к гнд от есп и подсоединить к гнд датчика
+OUT → например GPIO 32
+
+Светодиод (через резистор 220–330 Ω):
+«+» → GPIO 25 
+«–» → GND
