@@ -1,0 +1,190 @@
+#include <WiFi.h>
+#include <WebServer.h>
+#include <SPI.h>
+#include <MFRC522.h>
+#include <ESP32Servo.h>
+
+// ========================
+// Wi-Fi сети
+// ========================
+struct WifiCredential {
+  const char* ssid;
+  const char* password;
+};
+
+WifiCredential wifiNetworks[] = {
+  {"Udobni =)", "Gleb21122011"},
+  {"IS-WIFI", "RadinSEC600"}
+};
+const int WIFI_NETWORKS_COUNT = sizeof(wifiNetworks) / sizeof(wifiNetworks[0]);
+
+WebServer server(80);
+
+// ========================
+// RFID
+// ========================
+#define SS_PIN 5
+#define RST_PIN 4
+MFRC522 mfrc522(SS_PIN, RST_PIN);
+
+// ========================
+// Серво
+// ========================
+Servo servo1;
+Servo servo2;
+#define SERVO1_PIN 14
+#define SERVO2_PIN 27
+
+// Углы (подбери под свою механику!)
+int SERVO1_CLOSED = 90;
+int SERVO1_OPEN   = 0;
+int SERVO2_CLOSED = 90;
+int SERVO2_OPEN   = 180;
+
+// ========================
+// Подключение Wi-Fi
+// ========================
+void connectWiFi() {
+  for (int i = 0; i < WIFI_NETWORKS_COUNT; i++) {
+    Serial.print("Подключаюсь к: ");
+    Serial.println(wifiNetworks[i].ssid);
+    WiFi.begin(wifiNetworks[i].ssid, wifiNetworks[i].password);
+
+    unsigned long startAttemptTime = millis();
+    while (WiFi.status() != WL_CONNECTED &&
+           millis() - startAttemptTime < 8000) {
+      delay(500);
+      Serial.print(".");
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("\nWiFi подключено!");
+      Serial.print("IP адрес: ");
+      Serial.println(WiFi.localIP());
+      return;
+    }
+  }
+  Serial.println("Не удалось подключиться к Wi-Fi");
+}
+
+// ========================
+// Плавное движение сразу двух серв
+// ========================
+void smoothMoveBoth(Servo &s1, Servo &s2,
+                    int start1, int end1,
+                    int start2, int end2,
+                    int duration) {
+  start1 = constrain(start1, 0, 180);
+  end1   = constrain(end1,   0, 180);
+  start2 = constrain(start2, 0, 180);
+  end2   = constrain(end2,   0, 180);
+
+  int steps = max(abs(end1 - start1), abs(end2 - start2));
+  if (steps == 0) return;
+
+  float stepDelay = (float)duration / steps;
+  float angle1 = start1;
+  float angle2 = start2;
+
+  float delta1 = (float)(end1 - start1) / steps;
+  float delta2 = (float)(end2 - start2) / steps;
+
+  for (int i = 0; i <= steps; i++) {
+    s1.write((int)angle1);
+    s2.write((int)angle2);
+    angle1 += delta1;
+    angle2 += delta2;
+    delay(stepDelay);
+  }
+  s1.write(end1);
+  s2.write(end2);
+}
+
+// ========================
+// Управление воротами
+// ========================
+void openGates() {
+  Serial.println("Открываю ворота...");
+  smoothMoveBoth(servo1, servo2,
+                 SERVO1_CLOSED, SERVO1_OPEN,
+                 SERVO2_CLOSED, SERVO2_OPEN,
+                 3000);
+}
+
+void closeGates() {
+  Serial.println("Закрываю ворота...");
+  smoothMoveBoth(servo1, servo2,
+                 SERVO1_OPEN, SERVO1_CLOSED,
+                 SERVO2_OPEN, SERVO2_CLOSED,
+                 3000);
+}
+
+// ========================
+// HTTP обработчики
+// ========================
+void handleRoot() {
+  server.send(200, "text/plain", "ESP32 Smart Gate Online");
+}
+
+void handleOpen() {
+  openGates();
+  server.send(200, "text/plain", "Gates opened ✅");
+}
+
+void handleClose() {
+  closeGates();
+  server.send(200, "text/plain", "Gates closed ❌");
+}
+
+// ========================
+// SETUP
+// ========================
+void setup() {
+  Serial.begin(115200);
+
+  // RFID
+  SPI.begin();
+  mfrc522.PCD_Init();
+
+  // Сервы
+  servo1.setPeriodHertz(50);
+  servo2.setPeriodHertz(50);
+  servo1.attach(SERVO1_PIN, 500, 2400);
+  servo2.attach(SERVO2_PIN, 500, 2400);
+  servo1.write(SERVO1_CLOSED);
+  servo2.write(SERVO2_CLOSED);
+
+  // Wi-Fi
+  connectWiFi();
+
+  // Сервер
+  server.on("/", handleRoot);
+  server.on("/open", handleOpen);
+  server.on("/close", handleClose);
+  server.begin();
+  Serial.println("HTTP сервер запущен!");
+}
+
+// ========================
+// LOOP
+// ========================
+void loop() {
+  server.handleClient();
+
+
+// RFID
+  if (mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
+    Serial.print("RFID ключ найден: ");
+    for (byte i = 0; i < mfrc522.uid.size; i++) {
+      Serial.print(mfrc522.uid.uidByte[i], HEX);
+      Serial.print(" ");
+    }
+    Serial.println();
+
+    openGates();
+    delay(2000);   // подождать
+    closeGates();
+
+    mfrc522.PICC_HaltA();
+  }
+}
